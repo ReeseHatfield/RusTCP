@@ -1,4 +1,4 @@
-use std::net::TcpListener;
+use std::{io::{Read, Write}, net::TcpListener};
 
 fn main(){
     // a tcp listener is effecitvely just a server
@@ -19,10 +19,18 @@ fn main(){
     println!("Sucesfully opened TCP server");
 
 
+    let mut buf = vec![];
+
     println!("Listening for TCP streams...");
     for stream in server.incoming(){
         // should pass to handle fn
-        println!("Current incoming strem: {:?}", stream);
+
+        let num_bytes_read = stream.unwrap().read_to_end(&mut buf);
+
+        println!("Buffer: {:?}", buf);
+        println!("num_bytes_read: {:?}", num_bytes_read);
+
+
     }
 
 

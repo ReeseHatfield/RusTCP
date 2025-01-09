@@ -3,11 +3,14 @@ use core::str;
 pub type Buffer = Vec<u8>;
 
 pub fn buf_to_string(buf: &Buffer) -> Result<String, RustChatError> {
-    let content = str::from_utf8(buf).map_err(|_| RustChatError::BufferConversionError( 
+    let trimed_content: Vec<u8> = buf.iter().filter(|c| **c != 0).map(|&x| x).collect();
+
+
+    let content = str::from_utf8(&trimed_content).map_err(|_| RustChatError::BufferConversionError( 
         format!("Could not convert buffer into string"))
     )?;
 
-    return Ok(content.to_string());
+    return Ok(content.trim().to_string());
 }
 
 

@@ -18,13 +18,17 @@ fn main() {
     };
 
 
-    stream.write(b"Hello world!").unwrap();
+    let message = "Here is some wierd other data";
+
+    stream.write(message.as_bytes()).unwrap();
     stream.flush().unwrap();
 
-    println!("I wrote 'Hello world!'");
+    println!("I wrote {:?}", message);
 
-    let mut buf: rustcp::Buffer = vec![];
+    let mut buf: rustcp::Buffer = vec![0; 1024];
     stream.read(&mut buf).unwrap();
+
+    // println!("BUF: {:?}", buf);
 
     if let Ok(res) = rustcp::buf_to_string(&buf){
         println!("I got back: {:?}", res);

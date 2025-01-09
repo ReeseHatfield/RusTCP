@@ -21,7 +21,7 @@ fn main(){
     println!("Sucesfully opened TCP server");
 
 
-    let mut buf: rustcp::Buffer = vec![];
+    let mut buf: rustcp::Buffer = vec![0; 1024];
 
     println!("Listening for TCP streams...");
     for possible_streams in server.incoming(){
@@ -35,7 +35,7 @@ fn main(){
 
         stream.write_all(&buf).unwrap();
         stream.flush().unwrap(); 
-        buf.clear();
+        // buf.clear();
 
     }
 

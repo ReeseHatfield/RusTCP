@@ -1,5 +1,7 @@
 use std::{io::{Read, Write}, net::TcpListener};
 
+use RusTCP::rustcp;
+
 fn main(){
     // a tcp listener is effecitvely just a server
 
@@ -19,17 +21,21 @@ fn main(){
     println!("Sucesfully opened TCP server");
 
 
-    let mut buf = vec![];
+    let mut buf: rustcp::Buffer = vec![];
 
     println!("Listening for TCP streams...");
-    for stream in server.incoming(){
+    for possible_streams in server.incoming(){
         // should pass to handle fn
 
-        let num_bytes_read = stream.unwrap().read_to_end(&mut buf);
+        let mut stream = possible_streams.unwrap();
+        let num_bytes_read = stream.read(&mut buf);
 
         println!("Buffer: {:?}", buf);
         println!("num_bytes_read: {:?}", num_bytes_read);
 
+        stream.write_all(&buf).unwrap();
+        stream.flush().unwrap(); 
+        buf.clear();
 
     }
 

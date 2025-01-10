@@ -43,18 +43,21 @@ fn main(){
 }
 
 
-struct Server{
+struct Server<'a>{
     connections: Vec<Connection>,
-    chats: Vec<Chat>
+    chats: Vec<Chat<'a>>
 }
 
-struct Chat(Buffer);
+struct Chat<'a> { 
+    message: Buffer,
+    source: &'a rustcp::Socket,
+}
 
 
-impl std::fmt::Display for Chat {
+impl std::fmt::Display for Chat<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 
-        match buf_to_string(&self.0){
+        match buf_to_string(&self.message){
             Ok(s) => write!(f, "{}", s),
             Err(_) => write!(f, "Error: could not render messsage")
             
@@ -66,20 +69,5 @@ impl std::fmt::Display for Chat {
 
 // a connection TO the TCP server
 struct Connection {
-    client: Socket
+    client: rustcp::Socket
 }
-
-
-struct Socket {
-    address: Address,
-    port: Port,
-}
-
-
-// newtype pattern
-struct Address(String);
-// can like impl parse on these and do that cool pattern thingy
-struct Port(u8);
-
-
-

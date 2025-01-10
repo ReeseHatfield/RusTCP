@@ -7,20 +7,20 @@ use std::{
 use RusTCP::rustcp::{self, RustChatError, SocketAddr, Port, IP_Address};
 
 fn main() -> Result<(), rustcp::RustChatError> {
-    // let socket = "127.0.0.1:34254";
 
     let socket_addr = read_socket_addr()?;
     // stream -> connection from client and server
     // stream will get closed whenever drop(stream) is called
+    // socket -> 4 tuple (SRC_IP, SRC_PORT, DST_IP, DST_PORT)
+    // OR socket -> (SRC_SOCKET_ADDR, DSR_SOCKET_ADDR)
+    // where socket_addr -> (IP:PORT) 
 
     let mut stream = open_stream(socket_addr)?;
 
-    let message = "Here is some wierd other data";
+    let message = "i told you I only got time";
 
     stream.write(message.as_bytes()).unwrap();
     stream.flush().unwrap();
-
-    println!("I wrote {:?}", message);
 
     let mut buf: rustcp::Buffer = vec![0; 1024];
     stream.read(&mut buf).unwrap();

@@ -3,9 +3,11 @@
 use core::str;
 use std::str::FromStr;
 
+use std::net::{SocketAddr as StdSocketAddr, IpAddr as StdIpAddr};
+
 pub type Buffer = Vec<u8>;
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct SocketAddr {
     pub ip_addr: IP_Address,
     pub port: Port,
@@ -38,7 +40,7 @@ impl FromStr for SocketAddr {
 // can like impl parse on these and do that cool pa("Could not parse addresss".to_owned())ttern thingy
 // parse, dont validate
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct IP_Address(pub String);
 
 impl FromStr for IP_Address {
@@ -50,7 +52,7 @@ impl FromStr for IP_Address {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Port(pub u16);
 
 impl FromStr for Port {
@@ -92,6 +94,24 @@ impl std::fmt::Display for RustChatError {
             Self::TcpStreamError(msg) => write!(f, "Error in TCP stream: {}", msg),
             Self::SocketParseError(msg) => write!(f, "Socket parsing error: {}", msg),
             Self::BufferConversionError(msg) => write!(f, "Buffer conversion error: {}", msg),
+        }
+    }
+}
+
+
+// I need the server to track connections, so It just makes stuff easier If have my own type serverside, with ordering
+// I need to convert between them
+impl From<StdSocketAddr> for SocketAddr {
+    fn from(std_socket_addr: StdSocketAddr) -> Self {
+        let ip_addr = match std_socket_addr.ip() {
+            StdIpAddr::V4(ipv4) => IP_Address(ipv4.to_string()),
+            StdIpAddr::V6(ipv6) => IP_Address(ipv6.to_string()),
+        };
+        let port = Port(std_socket_addr.port());
+
+        SocketAddr {
+            ip_addr,
+            port,
         }
     }
 }

@@ -50,7 +50,7 @@ struct Server<'a>{
 
 struct Chat<'a> { 
     message: Buffer,
-    source: &'a rustcp::Socket,
+    source: &'a rustcp::SocketAddr,
 }
 
 
@@ -69,5 +69,5 @@ impl std::fmt::Display for Chat<'_> {
 
 // a connection TO the TCP server
 struct Connection {
-    client: rustcp::Socket
+    client: rustcp::SocketAddr
 }

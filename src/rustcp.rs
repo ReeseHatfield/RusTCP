@@ -1,17 +1,17 @@
 // shared between both client and server
 
 use core::str;
-use std::{ops::Add, str::FromStr};
+use std::str::FromStr;
 
 pub type Buffer = Vec<u8>;
 
 #[derive(Debug)]
-pub struct Socket {
-    address: Address,
-    port: Port,
+pub struct SocketAddr {
+    pub ip_addr: IP_Address,
+    pub port: Port,
 }
 
-impl FromStr for Socket {
+impl FromStr for SocketAddr {
     type Err = RustChatError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -25,11 +25,11 @@ impl FromStr for Socket {
             .next()
             .ok_or_else(|| RustChatError::SocketParseError("Missing port".to_string()))?;
 
-        let addr: Address = addr_str.parse()?;
+        let addr: IP_Address = addr_str.parse()?;
         let port: Port = port_str.parse()?;
 
-        Ok(Socket {
-            address: addr,
+        Ok(SocketAddr {
+            ip_addr: addr,
             port: port,
         })
     }
@@ -39,19 +39,19 @@ impl FromStr for Socket {
 // parse, dont validate
 
 #[derive(Debug)]
-pub struct Address(String);
+pub struct IP_Address(pub String);
 
-impl FromStr for Address {
+impl FromStr for IP_Address {
     type Err = RustChatError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // TODO add actual ip parsing here
-        Ok(Address(s.to_string()))
+        Ok(IP_Address(s.to_string()))
     }
 }
 
 #[derive(Debug)]
-pub struct Port(u16);
+pub struct Port(pub u16);
 
 impl FromStr for Port {
     type Err = RustChatError;
@@ -81,6 +81,7 @@ pub fn buf_to_string(buf: &Buffer) -> Result<String, RustChatError> {
 pub enum RustChatError {
     BufferConversionError(String),
     SocketParseError(String),
+    TcpStreamError(String)
 }
 
 impl std::error::Error for RustChatError {}
@@ -88,6 +89,7 @@ impl std::error::Error for RustChatError {}
 impl std::fmt::Display for RustChatError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::TcpStreamError(msg) => write!(f, "Error in TCP stream: {}", msg),
             Self::SocketParseError(msg) => write!(f, "Socket parsing error: {}", msg),
             Self::BufferConversionError(msg) => write!(f, "Buffer conversion error: {}", msg),
         }

@@ -7,7 +7,7 @@ use std::net::{SocketAddr as StdSocketAddr, IpAddr as StdIpAddr};
 
 pub type Buffer = Vec<u8>;
 
-#[derive(Debug,PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug,PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct SocketAddr {
     pub ip_addr: IP_Address,
     pub port: Port,
@@ -40,7 +40,7 @@ impl FromStr for SocketAddr {
 // can like impl parse on these and do that cool pa("Could not parse addresss".to_owned())ttern thingy
 // parse, dont validate
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct IP_Address(pub String);
 
 impl FromStr for IP_Address {
@@ -52,7 +52,7 @@ impl FromStr for IP_Address {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct Port(pub u16);
 
 impl FromStr for Port {

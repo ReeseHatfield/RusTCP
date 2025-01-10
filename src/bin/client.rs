@@ -4,20 +4,21 @@ use std::{
     vec,
 };
 
-use RusTCP::rustcp::{self, RustChatError, SocketAddr, Port, IP_Address};
+use RusTCP::rustcp::{self, IP_Address, Port, RustChatError, SocketAddr};
 
 fn main() -> Result<(), rustcp::RustChatError> {
+
 
     let socket_addr = read_socket_addr()?;
     // stream -> connection from client and server
     // stream will get closed whenever drop(stream) is called
     // socket -> 4 tuple (SRC_IP, SRC_PORT, DST_IP, DST_PORT)
     // OR socket -> (SRC_SOCKET_ADDR, DSR_SOCKET_ADDR)
-    // where socket_addr -> (IP:PORT) 
+    // where socket_addr -> (IP:PORT)
 
     let mut stream = open_stream(socket_addr)?;
 
-    let message = "i told you I only got time";
+    let message = "new input";
 
     stream.write(message.as_bytes()).unwrap();
     stream.flush().unwrap();
@@ -48,9 +49,12 @@ fn read_socket_addr() -> Result<rustcp::SocketAddr, rustcp::RustChatError> {
         ));
     }
 
-    match input_string.trim(){
-        "" =>  Ok(SocketAddr{ ip_addr: IP_Address("127.0.0.1".to_string()), port: Port(34254) }),
-        _ => input_string.trim().parse::<rustcp::SocketAddr>()
+    match input_string.trim() {
+        "" => Ok(SocketAddr {
+            ip_addr: IP_Address("127.0.0.1".to_string()),
+            port: Port(34254),
+        }),
+        _ => input_string.trim().parse::<rustcp::SocketAddr>(),
     }
 }
 
@@ -62,3 +66,4 @@ fn open_stream(socket: SocketAddr) -> Result<TcpStream, RustChatError> {
 
     return stream;
 }
+

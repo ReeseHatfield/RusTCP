@@ -40,7 +40,7 @@ fn main() -> Result<(), rustcp::RustChatError> {
 
                 Ok(_) => {},// continue, found nothing back
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    // read() will sometimes do this instead, but I dont care
+                    // print!("You: ");
                 }
                 Err(_) => {
                     println!("Server error oopsies");
@@ -55,13 +55,14 @@ fn main() -> Result<(), rustcp::RustChatError> {
 
     let send_thread = thread::spawn(move || {
         let stdin = io::stdin();
-        let mut stdout = io::stdout();
+        let stdout = io::stdout();
         let mut input_str = String::new();
 
 
         while *sender_running.lock().unwrap() {
             print!("You:"); // TODO fix me
-            stdout.flush().unwrap(); // TODO unwrap
+
+            must_flush(&stdout);
 
             input_str.clear(); // clear old input each iter
 
@@ -107,6 +108,14 @@ fn read_socket_addr() -> Result<rustcp::SocketAddr, rustcp::RustChatError> {
             port: Port(34254),
         }),
         _ => input_string.trim().parse::<rustcp::SocketAddr>(),
+    }
+}
+
+fn must_flush(mut stdout: &io::Stdout){
+    loop{
+        if stdout.flush().is_ok() {
+            break;
+        }
     }
 }
 

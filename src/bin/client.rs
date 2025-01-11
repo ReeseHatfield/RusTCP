@@ -1,12 +1,13 @@
 use std::{
-    io::{self, stdin, Read, Write}, net::TcpStream, sync::{Arc, Mutex}, thread, vec
+    io::{self, stdin, Read, Write},
+    net::TcpStream,
+    sync::{Arc, Mutex},
+    thread, vec,
 };
 
 use RusTCP::rustcp::{self, IP_Address, Port, RustChatError, SocketAddr};
 
 fn main() -> Result<(), rustcp::RustChatError> {
-
-
     let socket_addr = read_socket_addr()?;
     // stream -> connection from client and server
     // stream will get closed whenever drop(stream) is called
@@ -15,30 +16,40 @@ fn main() -> Result<(), rustcp::RustChatError> {
     // where socket_addr -> (IP:PORT)
 
     let shared_stream = open_stream(socket_addr)?;
-    shared_stream.set_nonblocking(true).map_err(|_| RustChatError::TcpStreamError("Could not set stream non-blocking".to_string()))?;
+    shared_stream.set_nonblocking(true).map_err(|_| {
+        RustChatError::TcpStreamError("Could not set stream non-blocking".to_string())
+    })?;
     let shared_stream = Arc::new(Mutex::new(shared_stream)); // will coerce type
 
-
     let is_running = Arc::new(Mutex::new(true));
-    // let message = "new input";
 
     let receiving_stream = Arc::clone(&shared_stream);
     let receiver_running = Arc::clone(&is_running);
     let rec_thread = thread::spawn(move || {
-
         let mut buf: rustcp::Buffer = vec![0; 1024];
 
-        while *receiver_running.lock().unwrap() {
-            let mut stream = receiving_stream.lock().unwrap();
+        while receiver_running.lock().is_ok() {
+            let mut stream = match receiving_stream.lock(){
+                Ok(stream) => stream,
+                Err(_) => {
+                    println!("Error: issue aquiring receiving lock");
+                    continue;
+                }
+            };
+
 
             match stream.read(&mut buf) {
                 Ok(actual_data) if actual_data > 0 => {
-                    let message = rustcp::buf_to_string(&buf).unwrap();
+
+                    let message = match rustcp::buf_to_string(&buf){
+                        Ok(msg) => msg,
+                        Err(_) => "Could not decode buffer".to_string()
+                    };
 
                     println!("Server: {}", message);
-                },
+                }
 
-                Ok(_) => {},// continue, found nothing back
+                Ok(_) => {} // continue, found nothing back
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                     // print!("You: ");
                 }
@@ -58,8 +69,7 @@ fn main() -> Result<(), rustcp::RustChatError> {
         let stdout = io::stdout();
         let mut input_str = String::new();
 
-
-        while *sender_running.lock().unwrap() {
+        while sender_running.lock().is_ok() {
             print!("You:"); // TODO fix me
 
             must_flush(&stdout);
@@ -70,22 +80,23 @@ fn main() -> Result<(), rustcp::RustChatError> {
                 println!("oopsies could not read that line");
             }
 
-            let mut stream = sending_stream.lock().unwrap();
+            let mut stream = match sending_stream.lock() {
+                Ok(stream) => stream,
+                Err(_) => {
+                    println!("Error: issue aquiring sending lock");
+                    continue;
+                }
+            };
 
-            if let Err(e) = stream.write_all(input_str.as_bytes()){
+            if let Err(e) = stream.write_all(input_str.as_bytes()) {
                 println!("Error could not send data {}", e);
                 break;
             }
-
-        
         }
-
     });
 
-
-    rec_thread.join().unwrap();
-    send_thread.join().unwrap();
-
+    rec_thread.join().map_err(|_| RustChatError::TcpStreamError("Could not join rec thread".to_string()))?;
+    send_thread.join().map_err(|_| RustChatError::TcpStreamError("Could not join send thread".to_string()))?;
 
     Ok(())
 }
@@ -111,8 +122,8 @@ fn read_socket_addr() -> Result<rustcp::SocketAddr, rustcp::RustChatError> {
     }
 }
 
-fn must_flush(mut stdout: &io::Stdout){
-    loop{
+fn must_flush(mut stdout: &io::Stdout) {
+    loop {
         if stdout.flush().is_ok() {
             break;
         }
@@ -127,4 +138,3 @@ fn open_stream(socket: SocketAddr) -> Result<TcpStream, RustChatError> {
 
     return stream;
 }
-

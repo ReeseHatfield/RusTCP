@@ -1,7 +1,5 @@
 use std::{
-    io::{stdin, Read, Write},
-    net::TcpStream,
-    vec,
+    io::{self, stdin, Read, Write}, net::TcpStream, sync::{Arc, Mutex}, thread, vec
 };
 
 use RusTCP::rustcp::{self, IP_Address, Port, RustChatError, SocketAddr};
@@ -16,23 +14,77 @@ fn main() -> Result<(), rustcp::RustChatError> {
     // OR socket -> (SRC_SOCKET_ADDR, DSR_SOCKET_ADDR)
     // where socket_addr -> (IP:PORT)
 
-    let mut stream = open_stream(socket_addr)?;
+    let shared_stream = open_stream(socket_addr)?;
+    shared_stream.set_nonblocking(true).map_err(|_| RustChatError::TcpStreamError("Could not set stream non-blocking".to_string()))?;
+    let shared_stream = Arc::new(Mutex::new(shared_stream)); // will coerce type
 
-    let message = "new input";
 
-    stream.write(message.as_bytes()).unwrap();
-    stream.flush().unwrap();
+    let is_running = Arc::new(Mutex::new(true));
+    // let message = "new input";
 
-    let mut buf: rustcp::Buffer = vec![0; 1024];
-    stream.read(&mut buf).unwrap();
+    let receiving_stream = Arc::clone(&shared_stream);
+    let receiver_running = Arc::clone(&is_running);
+    let rec_thread = thread::spawn(move || {
 
-    // println!("BUF: {:?}", buf);
+        let mut buf: rustcp::Buffer = vec![0; 1024];
 
-    if let Ok(res) = rustcp::buf_to_string(&buf) {
-        println!("I got back: {:?}", res);
-    }
+        while *receiver_running.lock().unwrap() {
+            let mut stream = receiving_stream.lock().unwrap();
 
-    println!("TCP stream: {:?}", stream);
+            match stream.read(&mut buf) {
+                Ok(actual_data) if actual_data > 0 => {
+                    let message = rustcp::buf_to_string(&buf).unwrap();
+
+                    println!("Server: {}", message);
+                },
+
+                Ok(_) => {},// continue, found nothing back
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                    // read() will sometimes do this instead, but I dont care
+                }
+                Err(_) => {
+                    println!("Server error oopsies");
+                    break;
+                }
+            }
+        }
+    });
+
+    let sending_stream = Arc::clone(&shared_stream);
+    let sender_running = Arc::clone(&is_running);
+
+    let send_thread = thread::spawn(move || {
+        let stdin = io::stdin();
+        let mut stdout = io::stdout();
+        let mut input_str = String::new();
+
+
+        while *sender_running.lock().unwrap() {
+            print!("You:"); // TODO fix me
+            stdout.flush().unwrap(); // TODO unwrap
+
+            input_str.clear(); // clear old input each iter
+
+            if stdin.read_line(&mut input_str).is_err() {
+                println!("oopsies could not read that line");
+            }
+
+            let mut stream = sending_stream.lock().unwrap();
+
+            if let Err(e) = stream.write_all(input_str.as_bytes()){
+                println!("Error could not send data {}", e);
+                break;
+            }
+
+        
+        }
+
+    });
+
+
+    rec_thread.join().unwrap();
+    send_thread.join().unwrap();
+
 
     Ok(())
 }

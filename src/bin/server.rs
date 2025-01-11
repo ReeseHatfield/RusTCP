@@ -22,10 +22,10 @@ fn main() {
 
     println!("Sucesfully opened TCP server");
 
-    let mut server: Server = Server {
+    let server = std::sync::Arc::new(std::sync::Mutex::new(Server {
         connections: HashMap::new(),
         chats: vec![],
-    };
+    }));
 
     println!("Listening for TCP streams...");
     for possible_streams in listener.incoming() {
@@ -33,47 +33,64 @@ fn main() {
         // handler to return result to get rid of all of these unwraps with -> ?
         let stream = possible_streams.unwrap(); // TODO fix me
 
-        match handle_incoming(&stream, &mut server) {
-            Ok(()) => println!("Sucessfully handled incoming TCP stream"),
-            Err(err) => println!("Could not handle TCP stream, {:?}", err),
-        };
+        let server_clone = std::sync::Arc::clone(&server);
+
+        // handle the client in some other thread
+        std::thread::spawn(move || {
+            handle_incoming(stream, server_clone)
+        });
     }
 }
 
-fn handle_incoming(mut stream: &TcpStream, server: &mut Server) -> Result<(), RustChatError> {
+fn handle_incoming(
+    mut stream: TcpStream,
+    server: std::sync::Arc<std::sync::Mutex<Server>>,
+){
+    let cur_addr: rustcp::SocketAddr = stream.peer_addr().unwrap().into();
     let mut buf: rustcp::Buffer = vec![0; 1024];
 
-    let cur_addr: rustcp::SocketAddr = stream.peer_addr().unwrap().into();
+    {// need the server to drop scope do it doesnt keep its lock
+        
+        let mut server = server.lock().unwrap();
+        if !server.connections.contains_key(&cur_addr) {
+            server.register_connection(&cur_addr, &stream);
+        }
+    }
+    
 
-    if !server.connections.contains_key(&cur_addr) {
-        server.register_connection(&cur_addr, stream);
+    loop {
+        match stream.read(&mut buf) {
+            // this is new to me, but thats really cool that you can do that
+            Ok(0) => {
+                // vast majoritt of
+                println!("Client disconnected");
+                break;
+            }
+            Ok(n) => {
+                println!("Got some bytes");
+                n
+            }
+            Err(err) => {
+                println!("Error reading from stream: {:?}", err);
+                break;
+            }
+        };
+
+        let chat = Chat {
+            message: buf.clone(),
+            source: cur_addr.clone(),
+        };
+
+        {
+            let mut server = server.lock().unwrap();
+            server.chats.push(chat.clone());
+            server.notify_all(&chat);
+        }
+
+        println!("Received message: {:?}", buf_to_string(&chat.message).unwrap());
     }
 
-    // add chat to vec
-    // then broadcast
 
-    let num_bytes_read = stream.read(&mut buf);
-
-    // should just maintain a copy of the chats message
-    let chat = Chat {
-        message: buf.clone(),
-        source: cur_addr,
-    };
-
-    stream
-        .write_all(&buf)
-        .map_err(|_| RustChatError::TcpStreamError("Could not write to TCP stream".to_string()))?;
-    stream.flush().unwrap();
-    // buf.clear();
-
-    println!("All chat so far:");
-    server.print_all_chats();
-
-    std::thread::sleep(std::time::Duration::from_secs(3));
-    server.notify_all(&chat);
-
-    server.chats.push(chat);
-    Ok(())
 }
 
 struct Server {
@@ -114,6 +131,7 @@ impl Server {
     }
 }
 
+#[derive(Clone)]
 struct Chat {
     message: Buffer,
     source: rustcp::SocketAddr,
@@ -126,9 +144,4 @@ impl std::fmt::Display for Chat {
             Err(_) => write!(f, "Error: could not render messsage"),
         }
     }
-}
-
-// a connection TO the TCP server
-struct Connection {
-    client: rustcp::SocketAddr,
 }

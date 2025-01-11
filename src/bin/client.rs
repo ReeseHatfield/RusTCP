@@ -95,8 +95,8 @@ fn main() -> Result<(), rustcp::RustChatError> {
         }
     });
 
-    rec_thread.join().map_err(|_| RustChatError::TcpStreamError("Could not join rec thread".to_string()))?;
-    send_thread.join().map_err(|_| RustChatError::TcpStreamError("Could not join send thread".to_string()))?;
+    rec_thread.join().map_err(|_| RustChatError::TcpThreadLockError("Could not join rec thread".to_string()))?;
+    send_thread.join().map_err(|_| RustChatError::TcpThreadLockError("Could not join send thread".to_string()))?;
 
     Ok(())
 }

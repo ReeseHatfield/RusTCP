@@ -36,27 +36,31 @@ fn main() {
         let server_clone = std::sync::Arc::clone(&server);
 
         // handle the client in some other thread
-        std::thread::spawn(move || {
-            handle_incoming(stream, server_clone)
-        });
+        std::thread::spawn(move || handle_incoming(stream, server_clone));
     }
 }
 
 fn handle_incoming(
     mut stream: TcpStream,
     server: std::sync::Arc<std::sync::Mutex<Server>>,
-){
-    let cur_addr: rustcp::SocketAddr = stream.peer_addr().unwrap().into();
+) -> Result<(), RustChatError> {
+    let cur_addr: rustcp::SocketAddr = stream
+        .peer_addr()
+        .map_err(|e| {
+            RustChatError::TcpStreamError("Could not read peer socket address".to_string())
+        })?
+        .into();
     let mut buf: rustcp::Buffer = vec![0; 1024];
 
-    {// need the server to drop scope do it doesnt keep its lock
-        
-        let mut server = server.lock().unwrap();
+    {
+        // need the server to drop scope do it doesnt keep its lock
+        let mut server = server.lock().map_err(|_| {
+            RustChatError::TcpThreadLockError("Could not aquire server lock".to_string())
+        })?;
         if !server.connections.contains_key(&cur_addr) {
             server.register_connection(&cur_addr, &stream);
         }
     }
-    
 
     loop {
         match stream.read(&mut buf) {
@@ -82,15 +86,23 @@ fn handle_incoming(
         };
 
         {
-            let mut server = server.lock().unwrap();
+            let mut server = server.lock().map_err(|_| {
+                RustChatError::TcpThreadLockError("Could not aquire server lock".to_string())
+            })?;
             server.chats.push(chat.clone());
             server.notify_all(&chat);
         }
 
-        println!("Received message: {:?}", buf_to_string(&chat.message).unwrap());
+        println!(
+            "Received message: {:?}",
+            match buf_to_string(&chat.message){
+                Ok(msg) => println!("{:?}", msg),
+                Err(e) => eprintln!("{:?}", e),
+            }
+        );
     }
 
-
+    Ok(())
 }
 
 struct Server {
@@ -106,9 +118,10 @@ impl Server {
             .insert(connection.clone(), stream.try_clone().unwrap());
     }
 
+    // DEBUG ONLY unwrap is fine here
     pub fn print_all_chats(&self) {
         self.chats.iter().for_each(|chat| {
-            println!("Message: {:?}", buf_to_string(&chat.message).unwrap()); // DEBUG ONLY unwrap is fine here
+            println!("Message: {:?}", buf_to_string(&chat.message).unwrap()); 
             println!("Source: {:?}", chat.source);
             println!();
         });

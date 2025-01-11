@@ -83,7 +83,8 @@ pub fn buf_to_string(buf: &Buffer) -> Result<String, RustChatError> {
 pub enum RustChatError {
     BufferConversionError(String),
     SocketParseError(String),
-    TcpStreamError(String)
+    TcpStreamError(String),
+    TcpThreadLockError(String),
 }
 
 impl std::error::Error for RustChatError {}
@@ -91,9 +92,10 @@ impl std::error::Error for RustChatError {}
 impl std::fmt::Display for RustChatError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::TcpStreamError(msg) => write!(f, "Error in TCP stream: {}", msg),
-            Self::SocketParseError(msg) => write!(f, "Socket parsing error: {}", msg),
             Self::BufferConversionError(msg) => write!(f, "Buffer conversion error: {}", msg),
+            Self::SocketParseError(msg) => write!(f, "Socket parsing error: {}", msg),
+            Self::TcpStreamError(msg) => write!(f, "Error in TCP stream: {}", msg),
+            Self::TcpThreadLockError(msg) => write!(f, "Error aquiring TCP thread: {}", msg),
         }
     }
 }

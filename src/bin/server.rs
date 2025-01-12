@@ -46,7 +46,7 @@ fn handle_incoming(
 ) -> Result<(), RustChatError> {
     let cur_addr: rustcp::SocketAddr = stream
         .peer_addr()
-        .map_err(|e| {
+        .map_err(|_| {
             RustChatError::TcpStreamError("Could not read peer socket address".to_string())
         })?
         .into();
@@ -58,7 +58,7 @@ fn handle_incoming(
             RustChatError::TcpThreadLockError("Could not aquire server lock".to_string())
         })?;
         if !server.connections.contains_key(&cur_addr) {
-            server.register_connection(&cur_addr, &stream);
+            server.register_connection(&cur_addr, &stream)?;
         }
     }
 
@@ -90,12 +90,12 @@ fn handle_incoming(
                 RustChatError::TcpThreadLockError("Could not aquire server lock".to_string())
             })?;
             server.chats.push(chat.clone());
-            server.notify_all(&chat);
+            server.notify_all(&chat)?;
         }
 
         println!(
             "Received message: {:?}",
-            match buf_to_string(&chat.message){
+            match buf_to_string(&chat.message) {
                 Ok(msg) => println!("{:?}", msg),
                 Err(e) => eprintln!("{:?}", e),
             }
@@ -112,21 +112,30 @@ struct Server {
 }
 
 impl Server {
-    pub fn register_connection(&mut self, connection: &SocketAddr, stream: &TcpStream) {
+    pub fn register_connection(
+        &mut self,
+        connection: &SocketAddr,
+        stream: &TcpStream,
+    ) -> Result<(), RustChatError> {
         // TODO idk what the fail condition is here, but should be handled eventually
-        self.connections
-            .insert(connection.clone(), stream.try_clone().unwrap());
+        self.connections.insert(
+            connection.clone(),
+            stream.try_clone().map_err(|_| {
+                RustChatError::TcpStreamError("Could not register connection".to_string())
+            })?,
+        );
+        Ok(())
     }
 
     // DEBUG ONLY unwrap is fine here
     pub fn print_all_chats(&self) {
         self.chats.iter().for_each(|chat| {
-            println!("Message: {:?}", buf_to_string(&chat.message).unwrap()); 
+            println!("Message: {:?}", buf_to_string(&chat.message).unwrap());
             println!("Source: {:?}", chat.source);
             println!();
         });
     }
-    pub fn notify_all(&self, chat: &Chat) {
+    pub fn notify_all(&self, chat: &Chat) -> Result<(), RustChatError> {
         // filter out everyone else from the map
         let everyone_else: Vec<&TcpStream> = self
             .connections
@@ -138,9 +147,10 @@ impl Server {
         for mut stream in everyone_else {
             stream
                 .write_all(&chat.message)
-                .map_err(|_| RustChatError::TcpStreamError("Could not send message".to_string()))
-                .unwrap();
+                .map_err(|_| RustChatError::TcpStreamError("Could not send message".to_string()))?;
         }
+
+        return Ok(());
     }
 }
 

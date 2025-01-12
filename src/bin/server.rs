@@ -117,7 +117,6 @@ impl Server {
         connection: &SocketAddr,
         stream: &TcpStream,
     ) -> Result<(), RustChatError> {
-        // TODO idk what the fail condition is here, but should be handled eventually
         self.connections.insert(
             connection.clone(),
             stream.try_clone().map_err(|_| {

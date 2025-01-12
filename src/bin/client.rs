@@ -15,7 +15,9 @@ fn main() -> Result<(), rustcp::RustChatError> {
     // OR socket -> (SRC_SOCKET_ADDR, DSR_SOCKET_ADDR)
     // where socket_addr -> (IP:PORT)
 
-    let shared_stream = open_stream(socket_addr)?;
+    let shared_stream = open_stream(&socket_addr)?;
+
+    println!("Connected to server at {}", socket_addr);
     shared_stream.set_nonblocking(true).map_err(|_| {
         RustChatError::TcpStreamError("Could not set stream non-blocking".to_string())
     })?;
@@ -46,12 +48,12 @@ fn main() -> Result<(), rustcp::RustChatError> {
                         Err(_) => "Could not decode buffer".to_string()
                     };
 
-                    println!("Server: {}", message);
+                    println!("{}", message);
                 }
 
                 Ok(_) => {} // continue, found nothing back
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    // print!("You: ");
+                    // do nothing, but dont cause oopsies
                 }
                 Err(_) => {
                     println!("Server error oopsies");
@@ -70,7 +72,6 @@ fn main() -> Result<(), rustcp::RustChatError> {
         let mut input_str = String::new();
 
         while sender_running.lock().is_ok() {
-            print!("You:"); // TODO fix me
 
             must_flush(&stdout);
 
@@ -130,8 +131,8 @@ fn must_flush(mut stdout: &io::Stdout) {
     }
 }
 
-fn open_stream(socket: SocketAddr) -> Result<TcpStream, RustChatError> {
-    let bind_addr: String = socket.ip_addr.0 + ":" + socket.port.0.to_string().as_str();
+fn open_stream(socket: &SocketAddr) -> Result<TcpStream, RustChatError> {
+    let bind_addr: String = socket.ip_addr.0.clone() + ":" + socket.port.0.to_string().as_str();
 
     let stream = TcpStream::connect(bind_addr)
         .map_err(|_| RustChatError::TcpStreamError("Could not open TCP stream".to_string()));

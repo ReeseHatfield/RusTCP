@@ -144,9 +144,10 @@ impl Server {
             .map(|(_, stream)| stream)
             .collect();
 
+
         for mut stream in everyone_else {
             stream
-                .write_all(&chat.message)
+                .write_all(&chat.to_string().as_bytes())
                 .map_err(|_| RustChatError::TcpStreamError("Could not send message".to_string()))?;
         }
 
@@ -163,7 +164,7 @@ struct Chat {
 impl std::fmt::Display for Chat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match buf_to_string(&self.message) {
-            Ok(s) => write!(f, "{}", s),
+            Ok(s) => write!(f, "{} => {}", self.source, s),
             Err(_) => write!(f, "Error: could not render messsage"),
         }
     }

@@ -117,3 +117,9 @@ impl From<StdSocketAddr> for SocketAddr {
         }
     }
 }
+
+impl std::fmt::Display for SocketAddr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.ip_addr.0, self.port.0)
+    }
+}
